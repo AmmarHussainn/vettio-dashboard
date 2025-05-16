@@ -1,0 +1,194 @@
+// src/components/Dashboard/CallsList.jsx
+import { useState, useEffect } from 'react';
+import { getCalls, markAsRead, markAsFavorite } from '../../services/api';
+import AudioPlayer from './AudioPlayer';
+import CallDetails from './CallDetails';
+
+const CallsList = ({ successful }) => {
+  const [calls, setCalls] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [selectedCall, setSelectedCall] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchCalls = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getCalls(successful, page, 10);
+        // Validate and clean the data before setting it
+        const validatedCalls = Array.isArray(data)
+          ? data.map((call) => ({
+              ...call,
+              analysis: call.analysis || {
+                summary: 'No summary available',
+                structuredData: {},
+                successEvaluation: 'false',
+              },
+              phoneNumber: call.phoneNumber || 'Unknown number',
+              monoRecording: call.monoRecording || null,
+            }))
+          : [];
+        setCalls(validatedCalls);
+      } catch (error) {
+        console.error('Error fetching calls:', error);
+        setError('Failed to load calls. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCalls();
+  }, [successful, page]);
+
+  const handleMarkAsRead = async (callId) => {
+    try {
+      await markAsRead(callId);
+      setCalls(
+        calls.map((call) =>
+          call.id === callId ? { ...call, read: true } : call
+        )
+      );
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
+  };
+
+  const handleMarkAsFavorite = async (callId) => {
+    try {
+      await markAsFavorite(callId);
+      setCalls(
+        calls.map((call) =>
+          call.id === callId ? { ...call, favourite: !call.favourite } : call
+        )
+      );
+    } catch (error) {
+      console.error('Error marking as favorite:', error);
+    }
+  };
+
+  if (loading) {
+    return <div className='text-center py-8'>Loading...</div>;
+  }
+
+  return (
+    <div className='space-y-4'>
+      <div className='grid grid-cols-1 gap-4'>
+        {calls.map((call) => {
+          // Safely access properties with fallbacks
+          const analysis = call.analysis || {};
+          const summary = analysis.summary || 'No summary available';
+          const successEvaluation = analysis.successEvaluation || 'false';
+          const structuredData = analysis.structuredData || {};
+
+          return (
+            <div
+              key={call.id}
+              className={`bg-white rounded-lg shadow p-4 cursor-pointer transition-all hover:shadow-md ${
+                !call.read ? 'border-l-4 border-[#602fc9]' : ''
+              } ${call.favourite ? 'bg-yellow-50' : ''}`}
+              onClick={() => setSelectedCall(call)}
+            >
+              <div className='flex justify-between items-start'>
+                <div className='flex-1'>
+                  <div className='flex items-center space-x-3'>
+                    <span
+                      className={`inline-block w-3 h-3 rounded-full ${
+                        successEvaluation === 'true'
+                          ? 'bg-green-500'
+                          : 'bg-red-500'
+                      }`}
+                    ></span>
+                    <h3 className='font-medium text-[#252a31]'>
+                      {call.phoneNumber || 'Unknown number'}
+                    </h3>
+                  </div>
+                  <p className='text-sm text-gray-500 mt-1'>
+                    {summary.substring(0, 100)}...
+                  </p>
+
+                  {structuredData.email && (
+                    <div className='mt-2'>
+                      <span className='inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800'>
+                        Email Collected
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className='flex space-x-2'>
+                  <button
+                    onClick={(e) => handleMarkAsFavorite(call.id, e)}
+                    className={`p-1 rounded-full ${
+                      call.favourite ? 'text-[#faa61b]' : 'text-gray-400'
+                    } hover:text-[#faa61b]`}
+                  >
+                    ★
+                  </button>
+                  {!call.read && (
+                    <button
+                      onClick={(e) => handleMarkAsRead(call.id, e)}
+                      className='p-1 rounded-full text-[#602fc9] hover:bg-[#602fc9] hover:text-white'
+                    >
+                      ✓
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className='flex justify-between items-center mt-4'>
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className='px-4 py-2 bg-[#f9f9f9] rounded-md disabled:opacity-50'
+        >
+          Previous
+        </button>
+        <span className='text-sm text-gray-600'>Page {page}</span>
+        <button
+          onClick={() => setPage((p) => p + 1)}
+          disabled={calls.length < 10}
+          className='px-4 py-2 bg-[#f9f9f9] rounded-md disabled:opacity-50'
+        >
+          Next
+        </button>
+      </div>
+
+      {selectedCall && (
+        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50'>
+          <div className='bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto'>
+            <div className='p-6'>
+              <div className='flex justify-between items-start'>
+                <h2 className='text-xl font-bold text-[#252a31]'>
+                  Call Details
+                </h2>
+                <button
+                  onClick={() => setSelectedCall(null)}
+                  className='text-gray-500 hover:text-gray-700'
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className='mt-6 space-y-4'>
+                {selectedCall && (
+                  <CallDetails
+                    call={selectedCall}
+                    onClose={() => setSelectedCall(null)}
+                  />
+                )}
+                <AudioPlayer url={selectedCall.monoRecording} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CallsList;
