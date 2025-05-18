@@ -14,7 +14,8 @@ const Navbar = ({ onFilterChange, currentFilter }) => {
     { value: 'all', label: 'All Calls' },
     { value: 'unread', label: 'Unread', icon: <EnvelopeIcon className="w-4 h-4" /> },
     { value: 'read', label: 'Read', icon: <CheckIcon className="w-4 h-4" /> },
-    { value: 'successful', label: 'Successful', icon: <StarIcon className="w-4 h-4" /> }
+    // { value: 'successful', label: 'Successful', icon: <StarIcon className="w-4 h-4" /> }
+    { value: 'favourite', label: 'Favourite', icon: <StarIcon className="w-4 h-4" /> }
   ];
 
   return (
