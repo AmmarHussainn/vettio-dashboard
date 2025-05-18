@@ -1,15 +1,39 @@
 // src/components/Dashboard/CallsList.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { getCalls, markAsRead, markAsFavorite } from '../../services/api';
 import AudioPlayer from './AudioPlayer';
 import CallDetails from './CallDetails';
 
-const CallsList = ({ successful }) => {
+const CallsList = ({ successful, limit, filter = 'all' }) => {
   const [calls, setCalls] = useState([]);
+  const [filteredCalls, setFilteredCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [selectedCall, setSelectedCall] = useState(null);
   const [error, setError] = useState(null);
+
+  const filtereCalls = calls.filter((call) => {
+    // First filter by successful/unsuccessful based on route
+    const matchesRoute = successful
+      ? call.analysis?.successEvaluation === 'true'
+      : call.analysis?.successEvaluation !== 'true';
+
+    // Then apply the additional filter
+    if (filter === 'read') return matchesRoute && call.read;
+    if (filter === 'unread') return matchesRoute && !call.read;
+    if (filter === 'successful')
+      return call.analysis?.successEvaluation === 'true';
+
+    return matchesRoute;
+  });
+  const handleFilter = () => {
+    let newdata = filtereCalls;
+    setFilteredCalls(newdata);
+  };
+
+  useEffect(() => {
+    handleFilter();
+  }, [filter]);
 
   useEffect(() => {
     const fetchCalls = async () => {
@@ -31,6 +55,7 @@ const CallsList = ({ successful }) => {
             }))
           : [];
         setCalls(validatedCalls);
+        setFilteredCalls(validatedCalls);
       } catch (error) {
         console.error('Error fetching calls:', error);
         setError('Failed to load calls. Please try again.');
@@ -72,10 +97,19 @@ const CallsList = ({ successful }) => {
     return <div className='text-center py-8'>Loading...</div>;
   }
 
+  // Update your filtering logic to consider both successful prop and filter
+
+  // setCalls(filteredCalls)
+
+  // useEffect(() => {
+  //   let newdata = filteredCalls
+  //   setCalls(newdata);
+  // }, []);
+
   return (
     <div className='space-y-4'>
       <div className='grid grid-cols-1 gap-4'>
-        {calls.map((call) => {
+        {filteredCalls?.map((call) => {
           // Safely access properties with fallbacks
           const analysis = call.analysis || {};
           const summary = analysis.summary || 'No summary available';

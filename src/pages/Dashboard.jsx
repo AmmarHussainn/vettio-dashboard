@@ -1,6 +1,12 @@
 // src/pages/Dashboard.jsx
 import { useState, useEffect } from 'react';
-import { Routes, Route, Outlet } from 'react-router-dom';
+import { 
+  Routes, 
+  Route, 
+  Outlet,
+  useLocation,
+  useOutletContext 
+} from 'react-router-dom';
 import Sidebar from '../components/Layout/Sidebar';
 import Navbar from '../components/Layout/Navbar';
 import CallsList from '../components/Dashboard/CallsList';
@@ -8,13 +14,25 @@ import StatsCard from '../components/Dashboard/StatsCard';
 import { getSuccessfulCount, getUnsuccessfulCount } from '../services/api';
 
 const DashboardLayout = () => {
+  const [filter, setFilter] = useState('all');
+  const location = useLocation();
+
+  // Reset filter when navigating between tabs
+  useEffect(() => {
+    setFilter('all');
+
+  }, [location.pathname]);
+
   return (
     <div className="flex h-screen bg-[#f9f9f9]">
       <Sidebar />
       <div className="flex-1 ml-64">
-        <Navbar />
+        <Navbar 
+          currentFilter={filter}
+          onFilterChange={setFilter} 
+        />
         <main className="p-6 mt-16">
-          <Outlet />
+          <Outlet context={{ filter }} />
         </main>
       </div>
     </div>
@@ -25,6 +43,7 @@ const Overview = () => {
   const [successfulCount, setSuccessfulCount] = useState(0);
   const [unsuccessfulCount, setUnsuccessfulCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { filter } = useOutletContext();
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -76,10 +95,15 @@ const Overview = () => {
       
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-medium text-[#252a31] mb-4">Recent Successful Calls</h3>
-        <CallsList successful={true} limit={5} />
+        <CallsList successful={true} limit={5} filter={filter} />
       </div>
     </div>
   );
+};
+
+const FilteredCallsList = ({ successful }) => {
+  const { filter } = useOutletContext();
+  return <CallsList successful={successful} filter={filter} />;
 };
 
 const Dashboard = () => {
@@ -87,8 +111,8 @@ const Dashboard = () => {
     <Routes>
       <Route element={<DashboardLayout />}>
         <Route index element={<Overview />} />
-        <Route path="successful" element={<CallsList successful={true} />} />
-        <Route path="unsuccessful" element={<CallsList successful={false} />} />
+        <Route path="successful" element={<FilteredCallsList successful={true} />} />
+        <Route path="unsuccessful" element={<FilteredCallsList successful={false} />} />
       </Route>
     </Routes>
   );
